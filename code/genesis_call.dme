@@ -57,6 +57,3 @@
 // END_FILE_DIR
 // BEGIN_PREFERENCES
 // END_PREFERENCES
-// BEGIN_INCLUDE
-#include "modules\surgery\bodyparts\clocky.dm"
-// END_INCLUDE

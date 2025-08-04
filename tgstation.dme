@@ -6335,7 +6335,7 @@
 #include "code\modules\surgery\advanced\bioware\vein_threading.dm"
 #include "code\modules\surgery\bodyparts\_bodyparts.dm"
 #include "code\modules\surgery\bodyparts\bodypart_effects.dm"
-#include "code\modules\surgery\bodyparts\clock.dm"
+#include "code\modules\surgery\bodyparts\clocky.dm"
 #include "code\modules\surgery\bodyparts\dismemberment.dm"
 #include "code\modules\surgery\bodyparts\ghetto_parts.dm"
 #include "code\modules\surgery\bodyparts\head.dm"
