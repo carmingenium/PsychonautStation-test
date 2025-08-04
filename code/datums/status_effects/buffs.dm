@@ -344,6 +344,53 @@
 	owner.investigate_log("has been consumed by the Rod of Asclepius.", INVESTIGATE_DEATHS)
 	qdel(owner)
 
+
+/datum/status_effect/clock_rewind
+	id = "clock rewind"
+	status_type = STATUS_EFFECT_UNIQUE
+	duration = STATUS_EFFECT_PERMANENT
+	tick_interval = 2.5 SECONDS
+	alert_type = null
+
+	var/datum/component/aura_healing/aura_healing
+	var/hand
+	var/deathTick = 0
+
+/datum/status_effect/clock_rewind/on_apply()
+	var/static/list/organ_healing = list(
+		ORGAN_SLOT_BRAIN = 1.4,
+	)
+
+	aura_healing = owner.AddComponent( \
+		/datum/component/aura_healing, \
+		range = 5, \
+		brute_heal = 1.4, \
+		burn_heal = 1.4, \
+		toxin_heal = 1.4, \
+		suffocation_heal = 1.4, \
+		stamina_heal = 1.4, \
+		simple_heal = 1.4, \
+		organ_healing = organ_healing, \
+		healing_color = "#375637", \
+	)
+
+	var/datum/atom_hud/med_hud = GLOB.huds[DATA_HUD_MEDICAL_ADVANCED]
+	med_hud.show_to(owner)
+	return ..()
+
+/datum/status_effect/hippocratic_oath/on_remove()
+	QDEL_NULL(aura_healing)
+	var/datum/atom_hud/med_hud = GLOB.huds[DATA_HUD_MEDICAL_ADVANCED]
+	med_hud.hide_from(owner)
+
+/datum/status_effect/clock_rewind/get_examine_text()
+	return span_notice("[owner.p_They()] seem[owner.p_s()] to have an aura of healing and helpfulness about [owner.p_them()].")
+
+/datum/status_effect/hippocratic_oath/tick(seconds_between_ticks)
+	if(owner.stat == DEAD)
+		if(deathTick < 4)
+			deathTick += 1
+
 /datum/status_effect/good_music
 	id = "Good Music"
 	alert_type = null

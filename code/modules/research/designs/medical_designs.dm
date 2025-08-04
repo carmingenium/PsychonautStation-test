@@ -900,6 +900,7 @@
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_SCIENCE
 
+
 /datum/design/cybernetic_lungs
 	name = "Basic Cybernetic Lungs"
 	desc = "A basic pair of cybernetic lungs."
