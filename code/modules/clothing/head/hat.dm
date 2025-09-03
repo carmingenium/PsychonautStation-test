@@ -372,3 +372,23 @@
 	icon_state = "paper"
 	worn_icon_state = "paper"
 	dog_fashion = /datum/dog_fashion/head
+
+/obj/item/clothing/head/costume/mao_hat
+	name = "Heishou Pack Mao Branch Hat"
+	desc = "Its yellow afterimages might as well be the last thing you see."
+	icon_state = "mao_hat"
+
+/obj/item/clothing/head/costume/si_hat
+	name = "Heishou Pack Si Branch Hat"
+	desc = "Toxic aura emanating from it makes you wanna look away..."
+	icon_state = "si_hat"
+
+/obj/item/clothing/head/costume/you_hat
+	name = "Heishou Pack You Branch Hat"
+	desc = "The red crest brings chaos with it."
+	icon_state = "you_hat"
+
+/obj/item/clothing/head/costume/wu_hat
+	name = "Heishou Pack Wu Branch Hat"
+	desc = "The more you look at it, the more you start to hear the hoofs."
+	icon_state = "wu_hat"
