@@ -41,10 +41,6 @@
 				/obj/item/clothing/head/costume/sombrero/green = 3,
 				/obj/item/clothing/head/costume/nightcap/blue = 3,
 				/obj/item/clothing/head/costume/nightcap/red = 3,
-				/obj/item/clothing/head/costume/mao_hat = 3,
-				/obj/item/clothing/head/costume/si_hat = 3,
-				/obj/item/clothing/head/costume/you_hat = 3,
-				/obj/item/clothing/head/costume/wu_hat = 3,
 			),
 		),
 
