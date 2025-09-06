@@ -185,7 +185,8 @@ GLOBAL_LIST_INIT(autodrobe_premium_items, list(
 	/obj/item/clothing/suit/costume/drfreeze_coat = 1,
 	/obj/item/clothing/under/costume/drfreeze = 1,
 	/obj/item/clothing/head/costume/drfreezehat = 1,
-	/obj/item/clothing/head/costume/mao_hat = 4,
+	/obj/item/clothing/head/costume/mao_hat = 1,
+	/obj/item/clothing/mask/heishou_mask = 1,
 ))
 
 GLOBAL_LIST_INIT(autodrobe_contraband_items, list(

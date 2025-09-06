@@ -4101,6 +4101,7 @@
 #include "code\modules\clothing\masks\gasmask.dm"
 #include "code\modules\clothing\masks\gondola.dm"
 #include "code\modules\clothing\masks\hailer.dm"
+#include "code\modules\clothing\masks\heishou_mask.dm"
 #include "code\modules\clothing\masks\moustache.dm"
 #include "code\modules\clothing\masks\muzzle.dm"
 #include "code\modules\clothing\masks\surgical.dm"

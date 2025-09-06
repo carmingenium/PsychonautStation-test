@@ -336,3 +336,5 @@
 	icon = 'icons/psychonaut/obj/clothing/head/chaplain.dmi'
 	worn_icon = 'icons/psychonaut/mob/clothing/head/chaplain.dmi'
 	armor_type = /datum/armor/chaplainsuit_armor_weaker
+
+//Heishou Giysilerinin aynı lokasyonda bulunması için Chaplain kostümünü code\modules\clothing kısmında bırakıyorum.
