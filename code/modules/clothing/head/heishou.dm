@@ -1,3 +1,27 @@
+/datum/armor/wu_hat
+	melee = 30
+	bullet = 30
+	laser = 10
+	energy = 20
+	bomb = 50
+	bio = 60
+	fire = 100
+	acid = 100
+	wound = 10
+
+/datum/armor/you_hat
+	melee = 35
+	bullet = 30
+	laser = 30
+	energy = 40
+	bomb = 25
+	fire = 50
+	acid = 50
+	wound = 10
+
+
+
+
 //Mao Autodrobe
 /obj/item/clothing/head/costume/mao_hat
 	name = "Heishou Pack Mao Branch Hat"
@@ -24,16 +48,7 @@
 	worn_icon = 'icons/psychonaut/mob/clothing/head/heishou_hats/you_hat.dmi'
 	icon_state = "you_hat"
 	flags_inv = HIDEHAIR
-	/datum/armor/you_hat
-	melee = 35
-	bullet = 30
-	laser = 30
-	energy = 40
-	bomb = 25
-	fire = 50
-	acid = 50
-	wound = 10
-
+	armor = /datum/armor/you_hat
 //Wu Mining
 /obj/item/clothing/head/wu_hat
 	name = "Heishou Pack Wu Branch Hat"
@@ -48,13 +63,4 @@
 	flags_inv = HIDEHAIR
 	resistance_flags = FIRE_PROOF | ACID_PROOF
 	clothing_flags = THICKMATERIAL
-	/datum/armor/wu_hat
-	melee = 30
-	bullet = 30
-	laser = 10
-	energy = 20
-	bomb = 50
-	bio = 60
-	fire = 100
-	acid = 100
-	wound = 10
+	armor = /datum/armor/wu_hat

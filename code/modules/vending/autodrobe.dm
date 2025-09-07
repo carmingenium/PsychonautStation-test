@@ -187,6 +187,7 @@ GLOBAL_LIST_INIT(autodrobe_premium_items, list(
 	/obj/item/clothing/head/costume/drfreezehat = 1,
 	/obj/item/clothing/head/costume/mao_hat = 1,
 	/obj/item/clothing/mask/heishou_mask = 1,
+	/obj/item/clothing/under/mao_bodysuit = 1,
 ))
 
 GLOBAL_LIST_INIT(autodrobe_contraband_items, list(
