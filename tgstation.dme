@@ -4195,6 +4195,8 @@
 #include "code\modules\clothing\under\jobs\Plasmaman\engineering.dm"
 #include "code\modules\clothing\under\jobs\Plasmaman\medsci.dm"
 #include "code\modules\clothing\under\jobs\Plasmaman\security.dm"
+#include "code\modules\clothing\under\heishou_bodysuits\mao_bodysuit.dm"
+#include "code\modules\clothing\under\heishou_bodysuits\si_bodysuit.dm"
 #include "code\modules\deathmatch\deathmatch_controller.dm"
 #include "code\modules\deathmatch\deathmatch_loadouts.dm"
 #include "code\modules\deathmatch\deathmatch_lobby.dm"

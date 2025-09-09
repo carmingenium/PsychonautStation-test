@@ -19,9 +19,6 @@
 	acid = 50
 	wound = 10
 
-
-
-
 //Mao Autodrobe
 /obj/item/clothing/head/costume/mao_hat
 	name = "Heishou Pack Mao Branch Hat"
@@ -48,7 +45,7 @@
 	worn_icon = 'icons/psychonaut/mob/clothing/head/heishou_hats/you_hat.dmi'
 	icon_state = "you_hat"
 	flags_inv = HIDEHAIR
-	armor = /datum/armor/you_hat
+	armor_type = /datum/armor/you_hat
 //Wu Mining
 /obj/item/clothing/head/wu_hat
 	name = "Heishou Pack Wu Branch Hat"
@@ -63,4 +60,4 @@
 	flags_inv = HIDEHAIR
 	resistance_flags = FIRE_PROOF | ACID_PROOF
 	clothing_flags = THICKMATERIAL
-	armor = /datum/armor/wu_hat
+	armor_type = /datum/armor/wu_hat
