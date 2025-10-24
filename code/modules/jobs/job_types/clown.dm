@@ -109,8 +109,12 @@
 
 	H.fully_replace_character_name(H.real_name, pick(GLOB.clown_names)) //rename the mob AFTER they're equipped so their ID gets updated properly.
 	H.dna.add_mutation(/datum/mutation/clumsy, MUTATION_SOURCE_CLOWN_CLUMSINESS)
+<<<<<<< HEAD
 	ADD_TRAIT(H, TRAIT_CLOWNING, "[type]")
 	ADD_TRAIT(H, TRAIT_CAN_USE_JUKEBOX, JOB_TRAIT)
 	var/datum/atom_hud/fan = GLOB.huds[DATA_HUD_FAN]
 	fan.show_to(H)
+=======
+	ADD_TRAIT(H, TRAIT_CLOWN_ENJOYER, INNATE_TRAIT)
+>>>>>>> c729c3690a8e121d99a735ee854c3f32dbccb0e0
 	H.faction |= FACTION_CLOWN
