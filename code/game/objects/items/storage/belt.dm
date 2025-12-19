@@ -588,10 +588,19 @@
 	w_class = WEIGHT_CLASS_BULKY
 	interaction_flags_click = parent_type::interaction_flags_click | NEED_DEXTERITY | NEED_HANDS
 	var/stored_blade
+	actions_types = list(/datum/action/innate/blade_counter)
+	action_slots = ITEM_SLOT_BELT
+	COOLDOWN_DECLARE(resheath_cooldown)
+	COOLDOWN_DECLARE(full_ability_cooldown)
 
 /obj/item/storage/belt/sheath/Initialize(mapload)
 	. = ..()
 	AddElement(/datum/element/update_icon_updates_onmob)
+	RegisterSignal(src, COMSIG_ATOM_STORED_ITEM, PROC_REF(post_resheath))
+
+/obj/item/storage/belt/sheath/Destroy(force)
+	. = ..()
+	UnregisterSignal(src, COMSIG_ATOM_STORED_ITEM)
 
 /obj/item/storage/belt/sheath/examine(mob/user)
 	. = ..()
@@ -623,11 +632,110 @@
 		new stored_blade(src)
 		update_appearance()
 
+/obj/item/storage/belt/sheath/proc/post_resheath()
+	SIGNAL_HANDLER
+	COOLDOWN_START(src, resheath_cooldown, 10 SECONDS)
+
+/datum/action/innate/blade_counter
+	name = "Counterattack"
+	desc = "Anticipate an enemy's attack and strike back with your sheathed blade."
+	button_icon = 'icons/mob/actions/actions_spells.dmi'
+	button_icon_state = "declaration"
+	ranged_mousepointer = 'icons/effects/mouse_pointers/honorbound.dmi'
+
+	enable_text = "You prepare to counterattack a target..."
+	disable_text = "You relax your stance."
+
+	click_action = TRUE
+
+	var/datum/weakref/eyed_fool
+
+/datum/action/innate/blade_counter/IsAvailable(feedback = TRUE)
+	if(!isliving(owner))
+		return FALSE
+	var/obj/item/storage/belt/sheath/owners_sheath = target
+	if(!COOLDOWN_FINISHED(owners_sheath, full_ability_cooldown))
+		if(feedback)
+			to_chat(owner, span_warning("You failed a counterattack too recently!"))
+		return FALSE
+	if(!length(owners_sheath.contents))
+		if(feedback)
+			to_chat(owner, span_warning("Your sheath is empty!"))
+		return FALSE
+	if(!COOLDOWN_FINISHED(owners_sheath, resheath_cooldown))
+		if(feedback)
+			to_chat(owner, span_warning("You only just resheathed your blade!"))
+		return FALSE
+	return TRUE
+
+/datum/action/innate/blade_counter/proc/final_checks(atom/cast_on)
+	if(!isliving(cast_on))
+		return FALSE
+	if(owner == cast_on)
+		to_chat(owner, span_warning("You can't counterattack yourself!"))
+		return FALSE
+	var/mob/living/target = cast_on
+	if(!target.mind)
+		to_chat(owner, span_warning("They are too unpredictable to counterattack!"))
+		return FALSE
+	var/obj/item/storage/belt/sheath/oursheath = target
+	if(!length(oursheath.contents))
+		return FALSE
+	return TRUE
+
+/datum/action/innate/blade_counter/do_ability(mob/living/swordsman, mob/living/cast_on)
+	if(!final_checks(cast_on))
+		return TRUE
+	var/obj/item/storage/belt/sheath/used_sheath = target
+	RegisterSignal(swordsman, COMSIG_LIVING_CHECK_BLOCK, PROC_REF(counter_attack))
+	swordsman.Immobilize(1 SECONDS)
+	eyed_fool = WEAKREF(cast_on)
+	swordsman.visible_message(span_danger("[swordsman] widens [p_their(swordsman)] stance, [p_their(swordsman)] hand hovering over \the [used_sheath]!"), span_notice("You prepare to counterattack [cast_on]!"))
+	addtimer(CALLBACK(src, PROC_REF(relax), swordsman), 1 SECONDS)
+	COOLDOWN_START(used_sheath, full_ability_cooldown, 60 SECONDS)
+	unset_ranged_ability(swordsman)
+	return TRUE
+
+#define COUNTERMULTIPLIER 3
+
+/datum/action/innate/blade_counter/proc/counter_attack(mob/living/forward_thinker, atom/attackingthing, damage, attack_text, attack_type)
+	SIGNAL_HANDLER
+	var/obj/item/storage/belt/sheath/used_sheath = target
+	if(!used_sheath || !length(used_sheath.contents) || (attack_type != MELEE_ATTACK && attack_type != UNARMED_ATTACK))
+		return FAILED_BLOCK
+
+	var/obj/item/justicetool = used_sheath.contents[1]
+	var/mob/living/fool = isliving(attackingthing) ? attackingthing : attackingthing.loc
+	if(used_sheath.loc != forward_thinker || fool != eyed_fool.resolve() || !forward_thinker.put_in_active_hand(justicetool))
+		return FAILED_BLOCK
+	var/obj/item/bodypart/offending_hand = fool.get_active_hand()
+	fool.apply_damage(
+		damage = justicetool.force * COUNTERMULTIPLIER,
+		damagetype = justicetool.damtype,
+		def_zone = offending_hand,
+		blocked = fool.run_armor_check(offending_hand, MELEE, armour_penetration = justicetool.armour_penetration, silent = TRUE),
+		wound_bonus = justicetool.wound_bonus * COUNTERMULTIPLIER,
+		exposed_wound_bonus = justicetool.exposed_wound_bonus * COUNTERMULTIPLIER,
+		sharpness = justicetool.sharpness,
+		attack_direction = get_dir(forward_thinker, fool),
+		attacking_item = justicetool,
+	)
+	playsound(forward_thinker, 'sound/items/unsheath.ogg', 50, TRUE)
+	forward_thinker.visible_message(span_danger("[forward_thinker] swiftly draws \the [justicetool] and strikes [fool] during [p_their(fool)] attack!"), span_notice("You swiftly draw \the [justicetool] and counter-attack [fool]!"))
+	COOLDOWN_RESET(used_sheath, full_ability_cooldown)
+	return SUCCESSFUL_BLOCK
+
+#undef COUNTERMULTIPLIER
+
+/datum/action/innate/blade_counter/proc/relax(mob/living/holder)
+	UnregisterSignal(holder, COMSIG_LIVING_CHECK_BLOCK)
+
 /obj/item/storage/belt/sheath/sabre
 	name = "sabre sheath"
 	desc = "An ornate sheath designed to hold an officer's blade."
 	icon = 'icons/psychonaut/obj/clothing/belts.dmi'
 	icon_state = "sheath_red"
+	base_icon_state = "sheath_red"
 	lefthand_file = 'icons/psychonaut/mob/inhands/clothing/belts_lefthand.dmi'
 	righthand_file = 'icons/psychonaut/mob/inhands/clothing/belts_righthand.dmi'
 	inhand_icon_state = "sheath_red"
@@ -635,12 +743,45 @@
 	worn_icon_state = "sheath_red"
 	w_class = WEIGHT_CLASS_BULKY
 	interaction_flags_click = parent_type::interaction_flags_click | NEED_DEXTERITY | NEED_HANDS
-	unique_reskin = list(
-		"Red" = "sheath_red",
-		"Black" = "sheath_black"
-	)
 	storage_type = /datum/storage/sabre_belt
 	stored_blade = /obj/item/melee/sabre
+
+/obj/item/storage/belt/sheath/sabre/Initialize(mapload)
+	. = ..()
+	AddComponent(/datum/component/reskinable_item, /datum/atom_skin/sabre_sheath, infinite = FALSE)
+
+/datum/atom_skin/sabre_sheath
+	abstract_type = /datum/atom_skin/sabre_sheath
+	change_base_icon_state = TRUE
+	change_inhand_icon_state = TRUE
+	var/sabre_icon
+	var/sabre_icon_state
+
+/datum/atom_skin/sabre_sheath/red
+	preview_name = "Red"
+	new_icon = 'icons/psychonaut/obj/clothing/belts.dmi'
+	new_icon_state = "sheath_red"
+	sabre_icon = 'icons/psychonaut/obj/weapons/sword.dmi'
+	sabre_icon_state = "sabre_red"
+
+/datum/atom_skin/sabre_sheath/black
+	preview_name = "Black"
+	new_icon = 'icons/psychonaut/obj/clothing/belts.dmi'
+	new_icon_state = "sheath_black"
+	sabre_icon = 'icons/psychonaut/obj/weapons/sword.dmi'
+	sabre_icon_state = "sabre_black"
+
+/datum/atom_skin/sabre_sheath/apply(atom/apply_to)
+	var/obj/item/melee/sabre/sabre = locate() in apply_to.contents
+	if(!istype(sabre))
+		to_chat(apply_to.loc, span_warning("[apply_to] cannot be reskinned because the it's empty."))
+		return FALSE
+	. = ..()
+	APPLY_VAR_OR_RESET_INITIAL(sabre, icon, sabre_icon, reset_missing)
+	APPLY_VAR_OR_RESET_INITIAL(sabre, icon_state, sabre_icon_state, reset_missing)
+	APPLY_VAR_OR_RESET_INITIAL(sabre, inhand_icon_state, sabre_icon_state, reset_missing)
+	sabre.update_appearance()
+	sabre.update_slot_icon()
 
 /obj/item/storage/belt/sheath/sabre/click_alt(mob/user)
 	if(length(contents))
@@ -654,39 +795,15 @@
 
 /obj/item/storage/belt/sheath/sabre/update_icon_state()
 	. = ..()
-	icon_state = current_skin ? unique_reskin[current_skin] : initial(icon_state)
-	inhand_icon_state = current_skin ? unique_reskin[current_skin] : initial(inhand_icon_state)
-	worn_icon_state = current_skin ? unique_reskin[current_skin] : initial(worn_icon_state)
-	if(contents.len)
-		var/obj/item/I = contents[1]
-		icon_state += "-[I.icon_state]"
-		inhand_icon_state += "-[I.icon_state]"
-		worn_icon_state += "-[I.icon_state]"
+	icon_state = base_icon_state
+	inhand_icon_state = base_icon_state
+	worn_icon_state = base_icon_state
 
-/obj/item/storage/belt/sheath/sabre/on_click_alt_reskin(datum/source, mob/user)
-	if(!contents.len)
-		return NONE
-
-	return ..()
-
-/obj/item/storage/belt/sheath/sabre/reskin_obj(mob/user)
-	. = ..()
-	if(current_skin)
-		var/obj/item/I = contents[1]
-		if(isnull(I))
-			current_skin = null
-			icon_state = initial(icon_state)
-			update_appearance()
-			return
-		switch(current_skin)
-			if("Red")
-				I.icon_state = "sabre_red"
-				I.inhand_icon_state = "sabre_red"
-			if("Black")
-				I.icon_state = "sabre_black"
-				I.inhand_icon_state = "sabre_black"
-		I.update_appearance()
-		update_appearance()
+	var/obj/item/melee/sabre/sabre = locate() in contents
+	if(!isnull(sabre))
+		icon_state += "-[sabre.icon_state]"
+		inhand_icon_state += "-[sabre.icon_state]"
+		worn_icon_state += "-[sabre.icon_state]"
 
 /obj/item/storage/belt/sheath/grass_sabre
 	name = "sabre sheath"
@@ -695,6 +812,15 @@
 	inhand_icon_state = "grass_sheath"
 	worn_icon_state = "grass_sheath"
 	storage_type = /datum/storage/green_sabre_belt
+
+/obj/item/storage/belt/sheath/gladius
+	name = "gladius scabbard"
+	desc = "A fun-sized sheath for a fun-sized sword."
+	icon_state = "gladius_sheath"
+	inhand_icon_state = "gladius_sheath"
+	worn_icon_state = "gladius_sheath"
+	storage_type = /datum/storage/gladius_belt
+	stored_blade = /obj/item/claymore/gladius
 
 /obj/item/storage/belt/plant
 	name = "botanical belt"

@@ -7,7 +7,7 @@
 		back to work with this crate containing stamps, an export scanner, \
 		destination tagger, hand labeler and some package wrapping."
 	cost = CARGO_CRATE_VALUE * 1.75
-	contains = list(/obj/item/stamp,
+	contains = list(/obj/item/stamp/granted,
 					/obj/item/stamp/denied,
 					/obj/item/universal_scanner,
 					/obj/item/dest_tagger,
@@ -291,7 +291,7 @@
 	cost = CARGO_CRATE_VALUE * 4
 	contains = list(/obj/item/electrical_jukebox_beacon)
 	crate_name =  "electrical jukebox crate"
-	dangerous = TRUE
+	order_flags = ORDER_DANGEROUS
 
 /// Spare bar sign wallmount
 /datum/supply_pack/service/bar_sign

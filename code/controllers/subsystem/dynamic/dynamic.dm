@@ -296,8 +296,12 @@ SUBSYSTEM_DEF(dynamic)
 			picked_rulesets += picked_ruleset
 			continue
 
-		rulesets_weighted[picked_ruleset] -= picked_ruleset.repeatable_weight_decrease
-		total_weight -= picked_ruleset.repeatable_weight_decrease
+		var/weight_decrease = picked_ruleset.repeatable_weight_decrease
+		if(!isnull(SSstoryteller.current_storyteller))
+			weight_decrease *= SSstoryteller.current_storyteller.event_repetition_multipliers[picked_ruleset.track] || 1
+
+		rulesets_weighted[picked_ruleset] -= weight_decrease
+		total_weight -= weight_decrease
 		// Rulesets are not singletons. We need to to make a new one
 		picked_rulesets += new picked_ruleset.type(dynamic_config)
 
@@ -307,10 +311,10 @@ SUBSYSTEM_DEF(dynamic)
 
 /datum/controller/subsystem/dynamic/proc/get_advisory_report()
 	var/shown_tier = current_tier.tier
-	if(prob(10))
+	if(prob(CONFIG_GET(number/false_advisory_random_prob)))
 		shown_tier = pick(list(DYNAMIC_TIER_LOW, DYNAMIC_TIER_LOWMEDIUM, DYNAMIC_TIER_MEDIUMHIGH, DYNAMIC_TIER_HIGH) - current_tier.tier)
 
-	else if(prob(15))
+	else if(prob(CONFIG_GET(number/false_advisory_knn_prob)))
 		shown_tier = clamp(current_tier.tier + pick(-1, 1), DYNAMIC_TIER_LOW, DYNAMIC_TIER_HIGH)
 
 	for(var/datum/dynamic_tier/tier_datum as anything in subtypesof(/datum/dynamic_tier))
@@ -762,7 +766,6 @@ SUBSYSTEM_DEF(dynamic)
 		data += "name = \"[storyteller.name]\"\n"
 		data += "desc = \"[storyteller.desc]\"\n"
 		data += "welcome_text = \"[storyteller.welcome_text]\"\n"
-		data += "event_repetition_multiplier = [storyteller.event_repetition_multiplier]\n"
 		data += "restricted = [storyteller.restricted]\n"
 		data += "weight = [storyteller.weight]\n"
 		data += "population_min = [storyteller.population_min || 0]\n"
@@ -773,6 +776,9 @@ SUBSYSTEM_DEF(dynamic)
 
 		for(var/i in storyteller.extra_settings)
 			data += "extra_settings.[i] = [storyteller.extra_settings[i]]\n"
+
+		for(var/i in storyteller.event_repetition_multipliers)
+			data += "event_repetition_multipliers.[i] = [storyteller.event_repetition_multipliers[i]]\n"
 
 		for(var/i in storyteller.tag_multipliers)
 			data += "tag_multipliers.[i] = [storyteller.tag_multipliers[i]]\n"
