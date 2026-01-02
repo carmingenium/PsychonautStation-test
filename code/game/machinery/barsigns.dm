@@ -505,12 +505,38 @@ MAPPING_DIRECTIONAL_HELPERS(/obj/machinery/barsign, 32)
 	desc = "LIVE MOTHS!"
 	neon_color = COLOR_RED
 
+<<<<<<< HEAD
 /datum/barsign/turkubar
 	icon = 'icons/psychonaut/obj/machines/barsigns.dmi'
 	name = "Turku Bar"
 	icon_state = "turku-bar"
 	desc = "Turku Bar Pavyon."
 	neon_color = "#ffffff"
+=======
+/datum/barsign/coldones
+	name = "Cold Ones"
+	icon_state = "cold-ones"
+	desc = "That's what they call the yogurt effect."
+	neon_color = ""
+
+/datum/barsign/doctorsorders
+	name = "Doctor's Orders"
+	icon_state = "doctors-orders"
+	desc = "For over-the-counter painkillers."
+	neon_color = ""
+
+/datum/barsign/wrongturn
+	name = "Wrong Turn"
+	icon_state = "wrong-turn"
+	desc = "You don't feel lost. Nothing a few drinks cant fix, though."
+	neon_color = ""
+
+/datum/barsign/punpunspub
+	name = "Punpun's Pub"
+	icon_state = "pun-puns-pub"
+	desc = "After everything he's been through? I'd want to be near booze too."
+	neon_color = ""
+>>>>>>> c3d61b74c66ce04ff0d65b3852804c0ce99d632a
 
 // Hidden signs list below this point
 

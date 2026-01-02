@@ -118,11 +118,21 @@
 	stamina = 20
 	weak_against_armour = FALSE
 
+<<<<<<< HEAD
 /obj/projectile/beam/laser/musket/napoleon
 	name = "high-power laser"
 	damage = 50
 	stamina = 50
 	weak_against_armour = FALSE
+=======
+/obj/projectile/beam/laser/repeater
+	name = "clockwork laser"
+	icon_state = "laser_repeater"
+	impact_effect_type = /obj/effect/temp_visual/impact_effect/yellow_laser
+	damage = 15
+	light_color = COLOR_DARK_ORANGE
+	weak_against_armour = TRUE
+>>>>>>> c3d61b74c66ce04ff0d65b3852804c0ce99d632a
 
 /obj/projectile/beam/weak
 	damage = 15
