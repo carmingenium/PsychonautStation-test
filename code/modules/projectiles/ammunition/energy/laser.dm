@@ -61,8 +61,22 @@
 	pellets = 3
 	variance = 10
 
+<<<<<<< HEAD
 /obj/item/ammo_casing/energy/laser/musket/napoeleon
 	projectile_type = /obj/projectile/beam/laser/musket/napoleon
+=======
+/obj/item/ammo_casing/energy/laser/musket/repeater
+	projectile_type = /obj/projectile/beam/laser/repeater
+	pellets = 2
+	variance = 10
+	fire_sound = 'sound/items/weapons/thermalpistol.ogg'
+	e_cost = LASER_SHOTS(6, STANDARD_CELL_CHARGE)
+
+/obj/item/ammo_casing/energy/laser/musket/repeater/handheld
+	pellets = 1
+	e_cost = LASER_SHOTS(12, STANDARD_CELL_CHARGE)
+
+>>>>>>> ed4914831275c5b12e5ea20b9697d3d8f6dd67b1
 /obj/item/ammo_casing/energy/laser/practice
 	projectile_type = /obj/projectile/beam/practice
 	select_name = "practice"
