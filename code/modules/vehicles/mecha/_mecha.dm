@@ -18,6 +18,20 @@
  * Cooldown for gear is on the mech because exploits
  * Cooldown for melee is on mech_melee_attack also because exploits
  */
+
+//Limb status constants for new limb system
+#define LIMB_INTACT 0
+#define LIMB_DAMAGED 1
+#define LIMB_SEVERED 2
+
+//Limb identifiers for new limb system
+#define MECHA_HEAD "Head"
+#define MECHA_TORSO "Torso"
+#define MECHA_L_ARM "Left Arm"
+#define MECHA_R_ARM "Right Arm"
+#define MECHA_L_LEG "Left Leg"
+#define MECHA_R_LEG "Right Leg"
+
 /obj/vehicle/sealed/mecha
 	name = "exosuit"
 	desc = "Exosuit"
@@ -129,6 +143,13 @@
 	///flat equipment for iteration
 	var/list/flat_equipment
 
+	///Limb status tracking for new limb system
+	var/list/limb_status = list()
+	///Hand weapon active state tracking
+	var/list/hand_active = list()
+	///Screen objects for limb status HUD display
+	var/list/limb_screens = list()
+
 	///Handles an internal ore box for mining mechs
 	var/obj/structure/ore_box/ore_box
 
@@ -216,7 +237,6 @@
 	var/ui_theme = "ntos"
 	/// Module selected by default when mech UI is opened
 	var/ui_selected_module_index
-
 /datum/armor/sealed_mecha
 	melee = 20
 	bullet = 10
@@ -245,6 +265,21 @@
 		populate_parts()
 	update_access()
 	set_wires(new /datum/wires/mecha(src))
+
+	// Initialize limb system
+	// Set up limb tracking lists
+	limb_status[MECHA_HEAD] = LIMB_INTACT
+	limb_status[MECHA_TORSO] = LIMB_INTACT
+	limb_status[MECHA_L_ARM] = LIMB_INTACT
+	limb_status[MECHA_R_ARM] = LIMB_INTACT
+	limb_status[MECHA_L_LEG] = LIMB_INTACT
+	limb_status[MECHA_R_LEG] = LIMB_INTACT
+	hand_active[MECHA_L_ARM] = FALSE
+	hand_active[MECHA_R_ARM] = FALSE
+
+	// Register damage signal handler
+	RegisterSignal(src, COMSIG_ATOM_TAKE_DAMAGE, PROC_REF(on_take_damage))
+
 	START_PROCESSING(SSobj, src)
 	SSpoints_of_interest.make_point_of_interest(src)
 	log_message("[src.name] created.", LOG_MECHA)
@@ -1028,3 +1063,161 @@
 		victim.Unconscious(2 SECONDS)
 	else
 		victim.Knockdown(4 SECONDS)
+
+///Handle damage taken by the mech - track which limb and drop equipment
+/obj/vehicle/sealed/mecha/proc/on_take_damage(datum/source, damage_amount, damage_type, armor_flag, sound_effect, attack_dir, armour_penetration)
+	SIGNAL_HANDLER
+
+	if(!damage_amount || damage_amount <= 0)
+		return
+
+	// Determine which limb was hit based on attack direction
+	var/limb = determine_hit_limb(attack_dir)
+
+	if(!limb)
+		return
+
+	// Apply damage to the limb
+	apply_limb_damage(limb, damage_amount)
+
+///Determine which limb was hit based on attack direction
+/obj/vehicle/sealed/mecha/proc/determine_hit_limb(attack_dir)
+	// Map attack directions to limbs
+	switch(attack_dir)
+		if(NORTH)
+			return MECHA_HEAD
+		if(SOUTH)
+			return MECHA_TORSO
+		if(EAST)
+			if(dir == EAST)
+				return MECHA_R_ARM
+			else
+				return MECHA_L_ARM
+		if(WEST)
+			if(dir == WEST)
+				return MECHA_L_ARM
+			else
+				return MECHA_R_ARM
+		if(NORTHEAST)
+			return MECHA_R_ARM
+		if(NORTHWEST)
+			return MECHA_L_ARM
+		if(SOUTHEAST)
+			return MECHA_R_LEG
+		if(SOUTHWEST)
+			return MECHA_L_LEG
+
+	// Default to torso if unclear
+	return MECHA_TORSO
+
+///Override take_damage to track limb-specific damage
+/obj/vehicle/sealed/mecha/take_damage(damage_amount, damage_type = BRUTE, damage_flag = "", sound_effect = TRUE, attack_dir, armour_penetration = 0)
+	// Call original take_damage
+	. = ..()
+
+	// Track which limb was hit if we have direction info
+	if(attack_dir)
+		var/limb = determine_hit_limb(attack_dir)
+		if(limb && damage_amount > 0)
+			apply_limb_damage(limb, damage_amount)
+
+///Proc to handle limb damage and equipment dropping
+/obj/vehicle/sealed/mecha/proc/apply_limb_damage(limb, damage_amount)
+	if(!limb_status)
+		return
+
+	var/current_status = limb_status[limb]
+
+	//Determine if limb should be severed based on damage threshold
+	var/damage_threshold = max_integrity / 3
+	if(damage_amount >= damage_threshold && current_status == LIMB_INTACT)
+		sever_limb(limb)
+		return
+
+	//Apply damage status if not already severed
+	if(damage_amount > 0 && current_status != LIMB_SEVERED)
+		limb_status[limb] = LIMB_DAMAGED
+		update_limbs_hud()
+
+///Proc to sever a limb
+/obj/vehicle/sealed/mecha/proc/sever_limb(limb)
+	if(!limb_status)
+		return
+
+	if(limb_status[limb] == LIMB_SEVERED)
+		return  // Already severed
+
+	limb_status[limb] = LIMB_SEVERED
+
+	to_chat(occupants, span_danger("[limb] HAS BEEN SEVERED!"))
+	playsound(src, 'sound/vehicles/mecha/critdestr.ogg', 50)
+	drop_limb_equipment(limb)
+	//Disable hand control for this arm
+	hand_active[limb] = FALSE
+
+	//Update HUD display
+	update_limbs_hud()
+
+///Proc to drop equipment from a damaged/severed limb
+/obj/vehicle/sealed/mecha/proc/drop_limb_equipment(limb)
+	var/obj/item/mecha_parts/mecha_equipment/equipment_to_drop = null
+
+	if(limb == MECHA_L_ARM)
+		equipment_to_drop = equip_by_category[MECHA_L_ARM]
+	else if(limb == MECHA_R_ARM)
+		equipment_to_drop = equip_by_category[MECHA_R_ARM]
+
+	if(equipment_to_drop)
+		equipment_to_drop.detach(get_turf(src))
+		to_chat(occupants, span_warning("Equipment from [limb] has been ejected!"))
+
+///Proc to update the severed limbs HUD display
+/obj/vehicle/sealed/mecha/proc/update_limbs_hud()
+	//Clear old screens
+	for(var/mob/occupant in occupants)
+		if(!occupant.client)
+			continue
+		for(var/screen_obj in limb_screens)
+			occupant.client.screen -= screen_obj
+	limb_screens.Cut()
+
+	//Create new screens for each limb
+	var/y_pos = 1
+	for(var/limb in limb_status)
+		var/status = limb_status[limb]
+		var/icon_state = "intact"
+		var/color_val = COLOR_GREEN
+		var/limb_name = limb
+
+		switch(status)
+			if(LIMB_INTACT)
+				icon_state = "intact"
+				color_val = COLOR_GREEN
+			if(LIMB_DAMAGED)
+				icon_state = "damaged"
+				color_val = COLOR_YELLOW
+			if(LIMB_SEVERED)
+				icon_state = "severed"
+				color_val = COLOR_RED
+
+		var/atom/movable/screen/limb_status_display/display = new
+		display.limb_name = limb_name
+		display.icon_state = icon_state
+		display.screen_loc = "RIGHT+1,NORTH-[y_pos]"
+		display.color = color_val
+
+		limb_screens += display
+
+		for(var/mob/occupant in occupants)
+			if(occupant.client)
+				occupant.client.screen += display
+
+		y_pos += 2
+///Screen object for displaying severed limb status in HUD
+/atom/movable/screen/limb_status_display
+	icon = 'icons/hud/screen_gen.dmi'
+	icon_state = "blank"
+	layer = FLOAT_LAYER
+	plane = FLOAT_PLANE
+	var/limb_name = "Unknown"
+	mouse_opacity = MOUSE_OPACITY_ICON

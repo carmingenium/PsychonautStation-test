@@ -270,3 +270,67 @@
 		return
 
 	extinguisher.spray_extinguisher(owner)
+/datum/action/vehicle/sealed/mecha/hand_control
+	name = "Toggle Hand Weapon Control"
+	button_icon_state = "mech_hand_control"
+	desc = "Press Z to toggle weapon control in your hands. Press left/right for specific hands."
+
+/datum/action/vehicle/sealed/mecha/hand_control/Trigger(mob/clicker, trigger_flags)
+	if(!..())
+		return
+	if(!chassis || !(owner in chassis.occupants))
+		return
+
+	//Open hand control UI
+	chassis.show_hand_interface(owner)
+
+///Toggle hand weapon on/off
+/obj/vehicle/sealed/mecha/proc/toggle_hand_weapon(limb, mob/user)
+	if(!limb_status)
+		return
+
+	if(limb_status[limb] == LIMB_SEVERED)
+		balloon_alert(user, "[limb] is severed!")
+		return
+
+	if(limb_status[limb] == LIMB_DAMAGED)
+		balloon_alert(user, "[limb] is damaged, functionality limited!")
+
+	var/obj/item/mecha_parts/mecha_equipment/equipment = null
+	if(limb == MECHA_L_ARM)
+		equipment = equip_by_category[MECHA_L_ARM]
+	else if(limb == MECHA_R_ARM)
+		equipment = equip_by_category[MECHA_R_ARM]
+
+	if(!equipment)
+		balloon_alert(user, "No weapon equipped in [limb]!")
+		return
+
+	hand_active[limb] = !hand_active[limb]
+	balloon_alert(user, "[equipment.name] [hand_active[limb] ? "ACTIVE" : "DEACTIVATED"]!")
+
+	if(hand_active[limb])
+		equipment.set_active(TRUE)
+		SEND_SOUND(occupants, sound('sound/machines/terminal/terminal_prompt.ogg', volume=50))
+	else
+		equipment.set_active(FALSE)
+		SEND_SOUND(occupants, sound('sound/machines/terminal/terminal_eject.ogg', volume=50))
+
+///Show hand control interface for the mecha operator
+/obj/vehicle/sealed/mecha/proc/show_hand_interface(mob/user)
+	var/choice = show_radial_menu(user, src, list(
+		"LEFT HAND" = "left",
+		"RIGHT HAND" = "right",
+		"CLOSE" = "close"
+	), radius = 38)
+
+	if(!choice)
+		return
+
+	switch(choice)
+		if("left")
+			src.toggle_hand_weapon(MECHA_L_ARM, user)
+		if("right")
+			src.toggle_hand_weapon(MECHA_R_ARM, user)
+		if("close")
+			balloon_alert(user, "interface closed")
