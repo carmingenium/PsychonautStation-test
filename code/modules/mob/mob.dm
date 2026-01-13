@@ -777,6 +777,8 @@
 ///proc version to finish /mob/verb/mode() execution. used in case the proc needs to be queued for the tick after its first called
 /mob/proc/execute_mode()
 	if(ismecha(loc))
+		var/obj/vehicle/sealed/mecha/M = loc
+		M.mode(src)
 		return
 
 	if(incapacitated)

@@ -24,6 +24,11 @@
 #define LIMB_DAMAGED 1
 #define LIMB_SEVERED 2
 
+/datum/mech_limb
+	var/health
+	var/max_health
+	var/status = LIMB_INTACT
+
 //Limb identifiers for new limb system
 #define MECHA_HEAD "Head"
 #define MECHA_TORSO "Torso"
@@ -79,6 +84,8 @@
 	var/lights_power = 6
 	///Just stop the mech from doing anything
 	var/completely_disabled = FALSE
+	/// Used to prevent movement when legs are destroyed
+	var/can_move = TRUE
 	///Whether this mech is allowed to move diagonally
 	var/allow_diagonal_movement = TRUE
 	///Whether this mech moves into a direct as soon as it goes to move. Basically, turn and step in the same key press.
@@ -149,6 +156,8 @@
 	var/list/hand_active = list()
 	///Screen objects for limb status HUD display
 	var/list/limb_screens = list()
+
+	var/list/mech_hand_huds = list()
 
 	///Handles an internal ore box for mining mechs
 	var/obj/structure/ore_box/ore_box
@@ -235,9 +244,22 @@
 
 	/// Theme of the mech TGUI
 	var/ui_theme = "ntos"
-	/// Module selected by default when mech UI is opened
-	var/ui_selected_module_index
-/datum/armor/sealed_mecha
+		/// Module selected by default when mech UI is opened
+		var/ui_selected_module_index
+
+		var/last_def_zone
+		var/list/zone_to_limb_map = list(
+			"head" = MECHA_HEAD,
+			"chest" = MECHA_TORSO,
+			"l_arm" = MECHA_L_ARM,
+			"r_arm" = MECHA_R_ARM,
+			"l_leg" = MECHA_L_LEG,
+			"r_leg" = MECHA_R_LEG,
+			"l_hand" = MECHA_L_ARM,
+			"r_hand" = MECHA_R_ARM
+		)
+
+	/datum/armor/sealed_mecha
 	melee = 20
 	bullet = 10
 	bomb = 10
@@ -268,17 +290,18 @@
 
 	// Initialize limb system
 	// Set up limb tracking lists
-	limb_status[MECHA_HEAD] = LIMB_INTACT
-	limb_status[MECHA_TORSO] = LIMB_INTACT
-	limb_status[MECHA_L_ARM] = LIMB_INTACT
-	limb_status[MECHA_R_ARM] = LIMB_INTACT
-	limb_status[MECHA_L_LEG] = LIMB_INTACT
-	limb_status[MECHA_R_LEG] = LIMB_INTACT
+	limb_status[MECHA_HEAD] = new /datum/mech_limb(max_health = max_integrity * 0.15)
+	limb_status[MECHA_TORSO] = new /datum/mech_limb(max_health = max_integrity * 0.40)
+	limb_status[MECHA_L_ARM] = new /datum/mech_limb(max_health = max_integrity * 0.15)
+	limb_status[MECHA_R_ARM] = new /datum/mech_limb(max_health = max_integrity * 0.15)
+	limb_status[MECHA_L_LEG] = new /datum/mech_limb(max_health = max_integrity * 0.075)
+	limb_status[MECHA_R_LEG] = new /datum/mech_limb(max_health = max_integrity * 0.075)
+	for(var/limb_name in limb_status)
+		var/datum/mech_limb/limb = limb_status[limb_name]
+		limb.health = limb.max_health
+
 	hand_active[MECHA_L_ARM] = FALSE
 	hand_active[MECHA_R_ARM] = FALSE
-
-	// Register damage signal handler
-	RegisterSignal(src, COMSIG_ATOM_TAKE_DAMAGE, PROC_REF(on_take_damage))
 
 	START_PROCESSING(SSobj, src)
 	SSpoints_of_interest.make_point_of_interest(src)
@@ -456,10 +479,37 @@
 /obj/vehicle/sealed/mecha/add_occupant(mob/M, control_flags, forced)
 	if(..())
 		generate_equipment_actions(M)
+		update_limbs_hud(M)
+
+		if(M.client && M.hud_used)
+			M.hud_used.inventory_shown = FALSE
+			for(var/h in M.hud_used.hand_slots)
+				var/atom/movable/screen/inventory/hand/H = M.hud_used.hand_slots[h]
+				if(H)
+					H.screen_loc = "CENTER:-50,CENTER:-50"
+			M.hud_used.show_hud(M.hud_used.hud_version)
+
+		create_mech_hand_hud(M)
 
 /obj/vehicle/sealed/mecha/remove_occupant(mob/M)
 	remove_all_equipment_actions(M)
+	remove_limbs_hud(M)
+	remove_mech_hand_hud()
+
+	if(M.client && M.hud_used)
+		M.hud_used.inventory_shown = TRUE
+		M.hud_used.build_hand_slots()
+		M.hud_used.show_hud(M.hud_used.hud_version)
+
 	return ..()
+
+/obj/vehicle/sealed/mecha/proc/remove_limbs_hud(mob/user)
+	if(!user?.client)
+		return
+	var/atom/movable/screen/mech_damage_display/hud = user.hud_used.mech_damage
+	if(hud)
+		qdel(hud)
+		user.hud_used.mech_damage = null
 
 ///Generates action buttons for all eligible equipment and grants them to the occupant with VEHICLE_CONTROL_SETTINGS flag.
 /obj/vehicle/sealed/mecha/proc/generate_equipment_actions(mob/occupant)
@@ -815,10 +865,14 @@
 		balloon_alert(user, "wrong seat for equipment!")
 		return
 	var/obj/item/mecha_parts/mecha_equipment/selected
+	var/limb_name
 	if(modifiers[BUTTON] == RIGHT_CLICK)
-		selected = equip_by_category[MECHA_R_ARM]
+		limb_name = MECHA_R_ARM
 	else
-		selected = equip_by_category[MECHA_L_ARM]
+		limb_name = MECHA_L_ARM
+
+	if(hand_active[limb_name])
+		selected = equip_by_category[limb_name]
 	if(selected)
 		if(!Adjacent(target) && (selected.range & MECHA_RANGED))
 			if(HAS_TRAIT(livinguser, TRAIT_PACIFISM) && selected.harmful)
@@ -880,6 +934,34 @@
 	SIGNAL_HANDLER
 	if(isAI(user))
 		on_mouseclick(user, target, params)
+
+/obj/vehicle/sealed/mecha/proc/mode(mob/user)
+	var/hand_index = user.active_hand_index
+	var/limb_name
+	if(hand_index == 1) // Assuming 1 is left, 2 is right
+		limb_name = MECHA_L_ARM
+	else if(hand_index == 2)
+		limb_name = MECHA_R_ARM
+	else
+		return
+
+	var/datum/mech_limb/limb = limb_status[limb_name]
+	if(limb.status == LIMB_SEVERED)
+		balloon_alert(user, "[limb_name] is severed!")
+		return
+
+	var/obj/item/mecha_parts/mecha_equipment/equip = equip_by_category[limb_name]
+	if(!equip)
+		return // Nothing to toggle
+
+	hand_active[limb_name] = !hand_active[limb_name]
+
+	if(hand_active[limb_name])
+		balloon_alert(user, "[equip.name] activated!")
+	else
+		balloon_alert(user, "Switched to melee.")
+
+	update_mech_hand_hud()
 
 ///Displays a special speech bubble when someone inside the mecha speaks
 /obj/vehicle/sealed/mecha/proc/display_speech_bubble(datum/source, list/speech_args)
@@ -1064,40 +1146,49 @@
 	else
 		victim.Knockdown(4 SECONDS)
 
-///Handle damage taken by the mech - track which limb and drop equipment
-/obj/vehicle/sealed/mecha/proc/on_take_damage(datum/source, damage_amount, damage_type, armor_flag, sound_effect, attack_dir, armour_penetration)
-	SIGNAL_HANDLER
+/obj/vehicle/sealed/mecha/proc/def_zone_to_limb_name(def_zone)
+	return zone_to_limb_map[def_zone]
 
-	if(!damage_amount || damage_amount <= 0)
-		return
+/obj/vehicle/sealed/mecha/attackby(obj/item/W, mob/living/user, list/modifiers, list/attack_modifiers)
+	last_def_zone = attack_modifiers["def_zone"]
+	. = ..()
+	last_def_zone = null
 
-	// Determine which limb was hit based on attack direction
-	var/limb = determine_hit_limb(attack_dir)
+/obj/vehicle/sealed/mecha/projectile_hit(obj/projectile/hitting_projectile, def_zone, piercing_hit, blocked)
+	last_def_zone = def_zone
+	. = ..()
+	last_def_zone = null
 
-	if(!limb)
-		return
+/obj/vehicle/sealed/mecha/take_damage(damage_amount, damage_type = BRUTE, damage_flag = "", sound_effect = TRUE, attack_dir, armour_penetration = 0)
+	. = ..()
+	if(damage_amount > 0)
+		var/hit_limb_name
+		if(last_def_zone)
+			hit_limb_name = def_zone_to_limb_name(last_def_zone)
 
-	// Apply damage to the limb
-	apply_limb_damage(limb, damage_amount)
+		if(!hit_limb_name)
+			hit_limb_name = determine_hit_limb(attack_dir)
 
-///Determine which limb was hit based on attack direction
+		if(hit_limb_name)
+			apply_limb_damage(hit_limb_name, damage_amount)
+
 /obj/vehicle/sealed/mecha/proc/determine_hit_limb(attack_dir)
-	// Map attack directions to limbs
-	switch(attack_dir)
+	// Very simple logic for now. Can be improved with hit location from projectiles.
+	// This logic assumes the attacker is facing the mech.
+	var/rel_dir = turn(attack_dir, 180) // Direction from mech to attacker
+
+	// Adjust for mech's orientation
+	rel_dir = turn(rel_dir, -dir)
+
+	switch(rel_dir)
 		if(NORTH)
-			return MECHA_HEAD
+			return prob(80) ? MECHA_TORSO : MECHA_HEAD
 		if(SOUTH)
-			return MECHA_TORSO
+			return prob(90) ? MECHA_TORSO : pick(MECHA_L_LEG, MECHA_R_LEG)
 		if(EAST)
-			if(dir == EAST)
-				return MECHA_R_ARM
-			else
-				return MECHA_L_ARM
+			return prob(70) ? MECHA_R_ARM : MECHA_R_LEG
 		if(WEST)
-			if(dir == WEST)
-				return MECHA_L_ARM
-			else
-				return MECHA_R_ARM
+			return prob(70) ? MECHA_L_ARM : MECHA_L_LEG
 		if(NORTHEAST)
 			return MECHA_R_ARM
 		if(NORTHWEST)
@@ -1106,118 +1197,191 @@
 			return MECHA_R_LEG
 		if(SOUTHWEST)
 			return MECHA_L_LEG
+	return MECHA_TORSO // Default
 
-	// Default to torso if unclear
-	return MECHA_TORSO
-
-///Override take_damage to track limb-specific damage
-/obj/vehicle/sealed/mecha/take_damage(damage_amount, damage_type = BRUTE, damage_flag = "", sound_effect = TRUE, attack_dir, armour_penetration = 0)
-	// Call original take_damage
-	. = ..()
-
-	// Track which limb was hit if we have direction info
-	if(attack_dir)
-		var/limb = determine_hit_limb(attack_dir)
-		if(limb && damage_amount > 0)
-			apply_limb_damage(limb, damage_amount)
-
-///Proc to handle limb damage and equipment dropping
-/obj/vehicle/sealed/mecha/proc/apply_limb_damage(limb, damage_amount)
-	if(!limb_status)
+/obj/vehicle/sealed/mecha/proc/apply_limb_damage(limb_name, damage)
+	var/datum/mech_limb/limb = limb_status[limb_name]
+	if(!limb || limb.status == LIMB_SEVERED)
 		return
 
-	var/current_status = limb_status[limb]
+	limb.health -= damage
+	if(limb.health <= 0)
+		limb.health = 0
+		limb.status = LIMB_SEVERED
+		destroy_limb(limb_name)
+	else if(limb.health < limb.max_health)
+		limb.status = LIMB_DAMAGED
 
-	//Determine if limb should be severed based on damage threshold
-	var/damage_threshold = max_integrity / 3
-	if(damage_amount >= damage_threshold && current_status == LIMB_INTACT)
-		sever_limb(limb)
-		return
-
-	//Apply damage status if not already severed
-	if(damage_amount > 0 && current_status != LIMB_SEVERED)
-		limb_status[limb] = LIMB_DAMAGED
-		update_limbs_hud()
-
-///Proc to sever a limb
-/obj/vehicle/sealed/mecha/proc/sever_limb(limb)
-	if(!limb_status)
-		return
-
-	if(limb_status[limb] == LIMB_SEVERED)
-		return  // Already severed
-
-	limb_status[limb] = LIMB_SEVERED
-
-	to_chat(occupants, span_danger("[limb] HAS BEEN SEVERED!"))
-	playsound(src, 'sound/vehicles/mecha/critdestr.ogg', 50)
-	drop_limb_equipment(limb)
-	//Disable hand control for this arm
-	hand_active[limb] = FALSE
-
-	//Update HUD display
 	update_limbs_hud()
 
-///Proc to drop equipment from a damaged/severed limb
-/obj/vehicle/sealed/mecha/proc/drop_limb_equipment(limb)
-	var/obj/item/mecha_parts/mecha_equipment/equipment_to_drop = null
+/obj/vehicle/sealed/mecha/proc/destroy_limb(limb_name)
+	if(!limb_status)
+		return
 
-	if(limb == MECHA_L_ARM)
-		equipment_to_drop = equip_by_category[MECHA_L_ARM]
-	else if(limb == MECHA_R_ARM)
-		equipment_to_drop = equip_by_category[MECHA_R_ARM]
+	to_chat(occupants, span_danger("<span class='heavy_strong'>[limb_name] HAS BEEN DESTROYED!</span>"))
+	playsound(src, 'sound/vehicles/mecha/critdestr.ogg', 50)
 
-	if(equipment_to_drop)
-		equipment_to_drop.detach(get_turf(src))
-		to_chat(occupants, span_warning("Equipment from [limb] has been ejected!"))
+	switch(limb_name)
+		if(MECHA_L_ARM)
+			var/obj/item/mecha_parts/mecha_equipment/L_equip = equip_by_category[MECHA_L_ARM]
+			if(L_equip)
+				to_chat(occupants, span_warning("Left arm equipment has been ejected!"))
+				L_equip.detach(get_turf(src))
+			hand_active[MECHA_L_ARM] = FALSE
+		if(MECHA_R_ARM)
+			var/obj/item/mecha_parts/mecha_equipment/R_equip = equip_by_category[MECHA_R_ARM]
+			if(R_equip)
+				to_chat(occupants, span_warning("Right arm equipment has been ejected!"))
+				R_equip.detach(get_turf(src))
+			hand_active[MECHA_R_ARM] = FALSE
+		if(MECHA_L_LEG)
+			to_chat(occupants, span_warning("Movement has been impaired!"))
+			movedelay += initial(movedelay) * 0.5
+			var/datum/mech_limb/r_leg = limb_status[MECHA_R_LEG]
+			if(r_leg.status == LIMB_SEVERED)
+				to_chat(occupants, span_danger("Both legs destroyed! Movement disabled!"))
+				can_move = FALSE
+		if(MECHA_R_LEG)
+			to_chat(occupants, span_warning("Movement has been impaired!"))
+			movedelay += initial(movedelay) * 0.5
+			var/datum/mech_limb/l_leg = limb_status[MECHA_L_LEG]
+			if(l_leg.status == LIMB_SEVERED)
+				to_chat(occupants, span_danger("Both legs destroyed! Movement disabled!"))
+				can_move = FALSE
+		if(MECHA_TORSO)
+			to_chat(occupants, span_danger("All equipment has been disabled!"))
+			equipment_disabled = TRUE
+			for(var/category in list(MECHA_UTILITY, MECHA_POWER, MECHA_ARMOR))
+				for(var/obj/item/mecha_parts/mecha_equipment/equip in equip_by_category[category])
+					equip.detach(get_turf(src))
+		if(MECHA_HEAD)
+			to_chat(occupants, span_danger("Head destroyed! Pilot ejection initiated!"))
+			for(var/mob/living/occupant in occupants)
+				mob_exit(occupant, forced = TRUE)
+			completely_disabled = TRUE
 
-///Proc to update the severed limbs HUD display
-/obj/vehicle/sealed/mecha/proc/update_limbs_hud()
-	//Clear old screens
-	for(var/mob/occupant in occupants)
-		if(!occupant.client)
-			continue
-		for(var/screen_obj in limb_screens)
-			occupant.client.screen -= screen_obj
-	limb_screens.Cut()
+	update_limbs_hud()
 
-	//Create new screens for each limb
-	var/y_pos = 1
-	for(var/limb in limb_status)
-		var/status = limb_status[limb]
-		var/icon_state = "intact"
-		var/color_val = COLOR_GREEN
-		var/limb_name = limb
-
-		switch(status)
-			if(LIMB_INTACT)
-				icon_state = "intact"
-				color_val = COLOR_GREEN
-			if(LIMB_DAMAGED)
-				icon_state = "damaged"
-				color_val = COLOR_YELLOW
-			if(LIMB_SEVERED)
-				icon_state = "severed"
-				color_val = COLOR_RED
-
-		var/atom/movable/screen/limb_status_display/display = new
-		display.limb_name = limb_name
-		display.icon_state = icon_state
-		display.screen_loc = "RIGHT+1,NORTH-[y_pos]"
-		display.color = color_val
-
-		limb_screens += display
-
+/obj/vehicle/sealed/mecha/proc/update_limbs_hud(mob/user = null)
+	var/list/viewers = list()
+	if(user)
+		viewers.Add(user)
+	else
 		for(var/mob/occupant in occupants)
-			if(occupant.client)
-				occupant.client.screen += display
+			viewers.Add(occupant)
 
-		y_pos += 2
-///Screen object for displaying severed limb status in HUD
-/atom/movable/screen/limb_status_display
+	for(var/mob/viewer in viewers)
+		if(!viewer.client)
+			continue
+
+		var/atom/movable/screen/mech_damage_display/hud = viewer.hud_used.mech_damage
+		if(!hud)
+			hud = new /atom/movable/screen/mech_damage_display()
+			viewer.hud_used.mech_damage = hud
+			viewer.client.screen += hud
+
+		hud.overlays.Cut()
+
+		for(var/limb_name in limb_status)
+			var/datum/mech_limb/limb = limb_status[limb_name]
+			var/health_percent = (limb.health / limb.max_health) * 100
+			var/overlay_state
+
+			switch(limb_name)
+				if(MECHA_HEAD)
+					overlay_state = "hud_head"
+				if(MECHA_TORSO)
+					overlay_state = "hud_torso"
+				if(MECHA_L_ARM)
+					overlay_state = "hud_l_arm"
+				if(MECHA_R_ARM)
+					overlay_state = "hud_r_arm"
+				if(MECHA_L_LEG)
+					overlay_state = "hud_l_leg"
+				if(MECHA_R_LEG)
+					overlay_state = "hud_r_leg"
+
+			var/image/overlay = image(icon = hud.icon, icon_state = overlay_state)
+
+			if(limb.status == LIMB_SEVERED)
+				overlay.color = "#ff0000" // Red
+			else if(health_percent < 100)
+				// Yellow to Orange gradient
+				var/red = 255
+				var/green = 255 * (health_percent / 100)
+				overlay.color = rgb(red, green, 0)
+			else
+				overlay.color = "#00ff00" // Green
+
+			hud.overlays += overlay
+
+/atom/movable/screen/mech_damage_display
+	name = "Damage Display"
 	icon = 'icons/hud/screen_gen.dmi'
-	icon_state = "blank"
-	layer = FLOAT_LAYER
-	plane = FLOAT_PLANE
-	var/limb_name = "Unknown"
-	mouse_opacity = MOUSE_OPACITY_ICON
+	icon_state = "hud_base"
+	screen_loc = "RIGHT-1,CENTER-2"
+	layer = 20
+
+/atom/movable/screen/mech_hand
+	name = "mech hand"
+	icon = 'icons/obj/vehicles/mecha_construct.dmi'
+	icon_state = "fist_l"
+	var/obj/vehicle/sealed/mecha/owner_mech
+	var/limb_name
+
+	proc/update_appearance()
+		if(!owner_mech || !limb_name)
+			return
+
+		var/obj/item/mecha_parts/mecha_equipment/equip = owner_mech.equip_by_category[limb_name]
+
+		if(owner_mech.hand_active[limb_name] && equip)
+			icon = equip.icon
+			icon_state = equip.icon_state
+		else
+			// show fist icon
+			icon = 'icons/obj/vehicles/mecha_construct.dmi'
+			if(limb_name == MECHA_L_ARM)
+				icon_state = "fist_l"
+			else
+				icon_state = "fist_r"
+		..()
+
+/obj/vehicle/sealed/mecha/proc/create_mech_hand_hud(mob/user)
+	if(!user.client)
+		return
+
+	// Left Hand
+	var/atom/movable/screen/mech_hand/left_hand = new()
+	left_hand.screen_loc = ui_hand_position(1) // left hand pos
+	left_hand.owner_mech = src
+	left_hand.limb_name = MECHA_L_ARM
+	left_hand.update_appearance()
+	user.client.screen += left_hand
+	mech_hand_huds.Add(left_hand)
+
+	// Right Hand
+	var/atom/movable/screen/mech_hand/right_hand = new()
+	right_hand.screen_loc = ui_hand_position(2) // right hand pos
+	right_hand.owner_mech = src
+	right_hand.limb_name = MECHA_R_ARM
+	right_hand.update_appearance()
+	user.client.screen += right_hand
+	mech_hand_huds.Add(right_hand)
+
+/obj/vehicle/sealed/mecha/proc/remove_mech_hand_hud()
+	for(var/hud_element in mech_hand_huds)
+		qdel(hud_element)
+	mech_hand_huds.Cut()
+
+/obj/vehicle/sealed/mecha/proc/update_mech_hand_hud()
+	for(var/atom/movable/screen/mech_hand/hand_hud in mech_hand_huds)
+		hand_hud.update_appearance()
+
+
+
+
+
+
+
+
