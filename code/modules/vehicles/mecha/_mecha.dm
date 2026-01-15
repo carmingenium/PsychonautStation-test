@@ -29,6 +29,10 @@
 	var/max_health
 	var/status = LIMB_INTACT
 
+	proc/InitializeLimb(new_max_health)
+		max_health = new_max_health
+		health = new_max_health
+
 //Limb identifiers for new limb system
 #define MECHA_HEAD "Head"
 #define MECHA_TORSO "Torso"
@@ -244,27 +248,23 @@
 
 	/// Theme of the mech TGUI
 	var/ui_theme = "ntos"
-		/// Module selected by default when mech UI is opened
-		var/ui_selected_module_index
 
-		var/last_def_zone
-		var/list/zone_to_limb_map = list(
-			"head" = MECHA_HEAD,
-			"chest" = MECHA_TORSO,
-			"l_arm" = MECHA_L_ARM,
-			"r_arm" = MECHA_R_ARM,
-			"l_leg" = MECHA_L_LEG,
-			"r_leg" = MECHA_R_LEG,
-			"l_hand" = MECHA_L_ARM,
-			"r_hand" = MECHA_R_ARM
-		)
+	/// Module selected by default when mech UI is opened
+	var/ui_selected_module_index
 
-	/datum/armor/sealed_mecha
-	melee = 20
-	bullet = 10
-	bomb = 10
-	fire = 100
-	acid = 100
+	var/last_def_zone
+
+	var/list/zone_to_limb_map = list(
+		"head" = MECHA_HEAD,
+		"chest" = MECHA_TORSO,
+		"l_arm" = MECHA_L_ARM,
+		"r_arm" = MECHA_R_ARM,
+		"l_leg" = MECHA_L_LEG,
+		"r_leg" = MECHA_R_LEG,
+		"l_hand" = MECHA_L_ARM,
+		"r_hand" = MECHA_R_ARM
+	)
+
 
 /obj/vehicle/sealed/mecha/Initialize(mapload, built_manually)
 	. = ..()
@@ -290,15 +290,18 @@
 
 	// Initialize limb system
 	// Set up limb tracking lists
-	limb_status[MECHA_HEAD] = new /datum/mech_limb(max_health = max_integrity * 0.15)
-	limb_status[MECHA_TORSO] = new /datum/mech_limb(max_health = max_integrity * 0.40)
-	limb_status[MECHA_L_ARM] = new /datum/mech_limb(max_health = max_integrity * 0.15)
-	limb_status[MECHA_R_ARM] = new /datum/mech_limb(max_health = max_integrity * 0.15)
-	limb_status[MECHA_L_LEG] = new /datum/mech_limb(max_health = max_integrity * 0.075)
-	limb_status[MECHA_R_LEG] = new /datum/mech_limb(max_health = max_integrity * 0.075)
-	for(var/limb_name in limb_status)
-		var/datum/mech_limb/limb = limb_status[limb_name]
-		limb.health = limb.max_health
+	limb_status[MECHA_HEAD] = new /datum/mech_limb()
+	limb_status[MECHA_HEAD].InitializeLimb(max_integrity * 0.15)
+	limb_status[MECHA_TORSO] = new /datum/mech_limb()
+	limb_status[MECHA_TORSO].InitializeLimb(max_integrity * 0.40)
+	limb_status[MECHA_L_ARM] = new /datum/mech_limb()
+	limb_status[MECHA_L_ARM].InitializeLimb(max_integrity * 0.15)
+	limb_status[MECHA_R_ARM] = new /datum/mech_limb()
+	limb_status[MECHA_R_ARM].InitializeLimb(max_integrity * 0.15)
+	limb_status[MECHA_L_LEG] = new /datum/mech_limb()
+	limb_status[MECHA_L_LEG].InitializeLimb(max_integrity * 0.075)
+	limb_status[MECHA_R_LEG] = new /datum/mech_limb()
+	limb_status[MECHA_R_LEG].InitializeLimb(max_integrity * 0.075)
 
 	hand_active[MECHA_L_ARM] = FALSE
 	hand_active[MECHA_R_ARM] = FALSE
@@ -1147,7 +1150,7 @@
 		victim.Knockdown(4 SECONDS)
 
 /obj/vehicle/sealed/mecha/proc/def_zone_to_limb_name(def_zone)
-	return zone_to_limb_map[def_zone]
+	return zone_to_limb_map[def_zone] // might get rid of the error but unsure if logic is right here
 
 /obj/vehicle/sealed/mecha/attackby(obj/item/W, mob/living/user, list/modifiers, list/attack_modifiers)
 	last_def_zone = attack_modifiers["def_zone"]
@@ -1324,7 +1327,7 @@
 
 /atom/movable/screen/mech_hand
 	name = "mech hand"
-	icon = 'icons/obj/vehicles/mecha_construct.dmi'
+	icon = 'icons/psychonaut/obj/vehicles/mecha_construct.dmi'
 	icon_state = "fist_l"
 	var/obj/vehicle/sealed/mecha/owner_mech
 	var/limb_name
@@ -1340,7 +1343,7 @@
 			icon_state = equip.icon_state
 		else
 			// show fist icon
-			icon = 'icons/obj/vehicles/mecha_construct.dmi'
+			icon = 'icons/psychonaut/obj/vehicles/mecha_construct.dmi'
 			if(limb_name == MECHA_L_ARM)
 				icon_state = "fist_l"
 			else
