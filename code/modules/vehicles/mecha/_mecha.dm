@@ -47,7 +47,6 @@
 	icon = 'icons/mob/rideables/mecha.dmi'
 	resistance_flags = FIRE_PROOF | ACID_PROOF
 	max_integrity = 300
-	armor_type = /datum/armor/sealed_mecha
 	force = 5
 	movedelay = 1 SECONDS
 	move_force = MOVE_FORCE_VERY_STRONG
@@ -316,7 +315,7 @@
 	diag_hud_set_mechhealth()
 	diag_hud_set_mechcell()
 	diag_hud_set_mechstat()
-	update_appearance()
+	update_appearance() // is this supposed to be update_mech_hand_appearance() ? then it should have been global?
 
 	AddElement(/datum/element/atmos_sensitive, mapload)
 	become_hearing_sensitive(trait_source = ROUNDSTART_TRAIT)
@@ -1332,7 +1331,7 @@
 	var/obj/vehicle/sealed/mecha/owner_mech
 	var/limb_name
 
-	proc/update_appearance()
+	proc/update_mech_hand_appearance()
 		if(!owner_mech || !limb_name)
 			return
 
@@ -1348,7 +1347,7 @@
 				icon_state = "fist_l"
 			else
 				icon_state = "fist_r"
-		..()
+		..() // this function needs to be reverted back to update_appearance if its gonna have a parent
 
 /obj/vehicle/sealed/mecha/proc/create_mech_hand_hud(mob/user)
 	if(!user.client)
@@ -1359,7 +1358,7 @@
 	left_hand.screen_loc = ui_hand_position(1) // left hand pos
 	left_hand.owner_mech = src
 	left_hand.limb_name = MECHA_L_ARM
-	left_hand.update_appearance()
+	left_hand.update_mech_hand_appearance()
 	user.client.screen += left_hand
 	mech_hand_huds.Add(left_hand)
 
@@ -1368,7 +1367,7 @@
 	right_hand.screen_loc = ui_hand_position(2) // right hand pos
 	right_hand.owner_mech = src
 	right_hand.limb_name = MECHA_R_ARM
-	right_hand.update_appearance()
+	right_hand.update_mech_hand_appearance()
 	user.client.screen += right_hand
 	mech_hand_huds.Add(right_hand)
 
@@ -1379,7 +1378,7 @@
 
 /obj/vehicle/sealed/mecha/proc/update_mech_hand_hud()
 	for(var/atom/movable/screen/mech_hand/hand_hud in mech_hand_huds)
-		hand_hud.update_appearance()
+		hand_hud.update_mech_hand_appearance()
 
 
 
