@@ -35,9 +35,15 @@
 #define MECHA_SIDE_ARMOUR "mechaside"
 #define MECHA_BACK_ARMOUR "mechaback"
 
-#define MECHA_WEAPON "mecha_weapon" //l and r arm weapon type
+// Mecha limb system
+#define MECHA_HEAD "mecha_head"
+#define MECHA_TORSO "mecha_torso"
 #define MECHA_L_ARM "mecha_l_arm"
 #define MECHA_R_ARM "mecha_r_arm"
+#define MECHA_L_LEG "mecha_l_leg"
+#define MECHA_R_LEG "mecha_r_leg"
+
+#define MECHA_WEAPON "mecha_weapon" //l and r arm weapon type
 #define MECHA_UTILITY "mecha_utility"
 #define MECHA_POWER "mecha_power"
 #define MECHA_ARMOR "mecha_armor"

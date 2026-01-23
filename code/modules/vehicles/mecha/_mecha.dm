@@ -28,17 +28,11 @@
 	var/health
 	var/max_health
 	var/status = LIMB_INTACT
-	proc/InitializeLimb(new_max_health)
-		max_health = new_max_health
-		health = new_max_health
 
-//Limb identifiers for new limb system
-#define MECHA_HEAD "Head"
-#define MECHA_TORSO "Torso"
-#define MECHA_L_ARM "Left Arm"
-#define MECHA_R_ARM "Right Arm"
-#define MECHA_L_LEG "Left Leg"
-#define MECHA_R_LEG "Right Leg"
+/datum/mech_limb/proc/InitializeLimb(new_max_health)
+    max_health = new_max_health
+    health = new_max_health
+
 
 /obj/vehicle/sealed/mecha
 	name = "exosuit"
@@ -288,18 +282,20 @@
 
 	// Initialize limb system
 	// Set up limb tracking lists
+
 	limb_status[MECHA_HEAD] = new /datum/mech_limb()
-	limb_status[MECHA_HEAD].InitializeLimb(max_integrity * 0.15)
+	InitializeMechSlot(MECHA_HEAD, max_integrity * 0.15)
 	limb_status[MECHA_TORSO] = new /datum/mech_limb()
-	limb_status[MECHA_TORSO].InitializeLimb(max_integrity * 0.40)
+	InitializeMechSlot(MECHA_TORSO, max_integrity * 0.40)
 	limb_status[MECHA_L_ARM] = new /datum/mech_limb()
-	limb_status[MECHA_L_ARM].InitializeLimb(max_integrity * 0.15)
+	InitializeMechSlot(MECHA_L_ARM, max_integrity * 0.15)
 	limb_status[MECHA_R_ARM] = new /datum/mech_limb()
-	limb_status[MECHA_R_ARM].InitializeLimb(max_integrity * 0.15)
+	InitializeMechSlot(MECHA_R_ARM, max_integrity * 0.15)
 	limb_status[MECHA_L_LEG] = new /datum/mech_limb()
-	limb_status[MECHA_L_LEG].InitializeLimb(max_integrity * 0.075)
+	InitializeMechSlot(MECHA_L_LEG, max_integrity * 0.075)
 	limb_status[MECHA_R_LEG] = new /datum/mech_limb()
-	limb_status[MECHA_R_LEG].InitializeLimb(max_integrity * 0.075)
+	InitializeMechSlot(MECHA_R_LEG, max_integrity * 0.075)
+
 
 	hand_active[MECHA_L_ARM] = FALSE
 	hand_active[MECHA_R_ARM] = FALSE
@@ -334,6 +330,10 @@
 
 	AddElement(/datum/element/falling_hazard, damage = 80, wound_bonus = 10, hardhat_safety = FALSE, crushes = TRUE)
 	AddElement(/datum/element/hostile_machine)
+
+/obj/vehicle/sealed/mecha/proc/InitializeMechSlot(slot, integrity)
+	var/datum/mech_limb/newLimb = limb_status[slot]
+	newLimb.InitializeLimb(integrity)
 
 /obj/vehicle/sealed/mecha/Destroy()
 	/// If the former occupants get polymorphed, mutated, chestburstered,
@@ -1330,23 +1330,23 @@
 	var/obj/vehicle/sealed/mecha/owner_mech
 	var/limb_name
 
-	proc/update_mech_limb_appearance()
-		update_appearance()
-		if(!owner_mech || !limb_name)
-			return
+/atom/movable/screen/mech_hand/proc/update_mech_limb_appearance()
+	update_appearance()
+	if(!owner_mech || !limb_name)
+		return
 
-		var/obj/item/mecha_parts/mecha_equipment/equip = owner_mech.equip_by_category[limb_name]
+	var/obj/item/mecha_parts/mecha_equipment/equip = owner_mech.equip_by_category[limb_name]
 
-		if(owner_mech.hand_active[limb_name] && equip)
-			icon = equip.icon
-			icon_state = equip.icon_state
+	if(owner_mech.hand_active[limb_name] && equip)
+		icon = equip.icon
+		icon_state = equip.icon_state
+	else
+		// show fist icon
+		icon = 'icons/psychonaut/obj/vehicles/mecha_construct.dmi'
+		if(limb_name == MECHA_L_ARM)
+			icon_state = "fist_l"
 		else
-			// show fist icon
-			icon = 'icons/psychonaut/obj/vehicles/mecha_construct.dmi'
-			if(limb_name == MECHA_L_ARM)
-				icon_state = "fist_l"
-			else
-				icon_state = "fist_r"
+			icon_state = "fist_r"
 
 /obj/vehicle/sealed/mecha/proc/create_mech_hand_hud(mob/user)
 	if(!user.client)
