@@ -213,7 +213,7 @@
 
 		storyteller_setting = storyteller_setting | SSstoryteller.current_storyteller.settings | /datum/storyteller::settings
 
-	var/final_weight = islist(weight) ? get_tier_specific_value(weight, tier) : weight
+	var/final_weight = islist(weight) ? get_tier_specific_value(weight, tier) : weight // BURDA KALDIK DEVAM EDECEĞİZ..........
 	for(var/datum/dynamic_ruleset/other_ruleset as anything in SSdynamic.executed_rulesets)
 		if(other_ruleset == src)
 			continue
