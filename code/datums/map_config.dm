@@ -66,7 +66,12 @@
 	/// Boolean that tells SSmapping to load all away missions in the codebase.
 	var/load_all_away_missions = FALSE
 
+<<<<<<< HEAD
 	var/list/picked_rooms = list()
+=======
+	/// Number of additional weakpoints to spawn for SSminor_mapping
+	var/bonus_weakpoints = 0
+>>>>>>> a2af8930399a73e2b668ff8689c7288e9cc28bc3
 
 /**
  * Proc that simply loads the default map config, which should always be functional.
@@ -219,6 +224,10 @@
 
 	if ("give_players_hooks" in json)
 		give_players_hooks = json["give_players_hooks"]
+
+	if ("bonus_weakpoints" in json)
+		bonus_weakpoints = json["bonus_weakpoints"]
+
 
 	allow_custom_shuttles = json["allow_custom_shuttles"] != FALSE
 
